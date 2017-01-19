@@ -52,6 +52,39 @@ const waitForChanges = (since, response) => {
   }, 90 * 1000);
 };
 
+const registerChange = (title) => {
+  changes.push({
+    title,
+    time: Date.now()
+  });
+  waiting.forEach(function(waiter) {
+    sendTalks(getChangedTalks(waiter.since), waiter.response);
+  });
+  waiting = [];
+};
+
+const getChangedTalks = (since) => {
+  let found = [];
+  const alreadySeen = (title) => {
+    return found.some(function(f) {return f.title == title;});
+  }
+  for (let i = changes.length - 1; i >= 0; i--) {
+    let change = changes[i];
+    if (change.time <= since)
+      break;
+    else if (alreadySeen(change.title))
+      continue;
+    else if (change.title in talks)
+      found.push(talks[change.title]);
+    else
+      found.push({
+        title: change.title,
+        deleted: true
+      });
+  }
+  return found;
+};
+
 readStreamAsJSON(stream, callback) => {
   stream.on('data', (chunk) => {
     data += chunk;
