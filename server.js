@@ -1,19 +1,19 @@
-import http from 'http';
-import Router from './router';
-import ecstatic from 'ecstatic';
+const http = require('http');
+const Router = require('./router.js');
+const ecstatic = require('ecstatic');
 
 const fileServer = ecstatic({
   root: './public'
 });
-const router = new Router();
+let router = new Router();
 
-const talks = Object.create(null);
-const data = '';
-const waiting = [];
-const changes = [];
+let talks = Object.create(null);
+let data = '';
+let waiting = [];
+let changes = [];
 
 
-http.createServer(function(request, response) {
+http.createServer((request, response) => {
   if (!router.resolve(request, response)) {
     fileServer(request, response);
   }
@@ -26,30 +26,37 @@ const respond = (response, status, data, type) => {
   response.end(data);
 };
 
-const respondJason = (response, status, data) => {
+const respondJSON = (response, status, data) => {
   respond(response, status, JSON.stringify(data), 'application/json');
 };
 
 const sendTalks = (talks, response) => {
-  respondJSON(response, 200 {
+  respondJSON(response, 200, {
     serverTime: Date.now(),
     talks,
   });
 }
 
-const waitForChanges = (since, response) => {
-  let waiter = {
-    since,
-    response,
-  };
-  waiting.push(waiter);
-  setTimeout(function() {
-    let found = waiting.indexOf(waiter);
-    if (found > -1) {
-      waiting.splice(found, 1);
-      sendTalks([], response);
-    }
-  }, 90 * 1000);
+const getChangedTalks = (since) => {
+  let found = [];
+  const alreadySeen = (title) => {
+    return found.some(function(f) {return f.title == title;});
+  }
+  for (let i = changes.length - 1; i >= 0; i--) {
+    let change = changes[i];
+    if (change.time <= since)
+    break;
+    else if (alreadySeen(change.title))
+    continue;
+    else if (change.title in talks)
+    found.push(talks[change.title]);
+    else
+    found.push({
+      title: change.title,
+      deleted: true
+    });
+  }
+  return found;
 };
 
 const registerChange = (title) => {
@@ -63,29 +70,7 @@ const registerChange = (title) => {
   waiting = [];
 };
 
-const getChangedTalks = (since) => {
-  let found = [];
-  const alreadySeen = (title) => {
-    return found.some(function(f) {return f.title == title;});
-  }
-  for (let i = changes.length - 1; i >= 0; i--) {
-    let change = changes[i];
-    if (change.time <= since)
-      break;
-    else if (alreadySeen(change.title))
-      continue;
-    else if (change.title in talks)
-      found.push(talks[change.title]);
-    else
-      found.push({
-        title: change.title,
-        deleted: true
-      });
-  }
-  return found;
-};
-
-readStreamAsJSON(stream, callback) => {
+const readStreamAsJSON = (stream, callback) => {
   stream.on('data', (chunk) => {
     data += chunk;
   });
@@ -103,6 +88,21 @@ readStreamAsJSON(stream, callback) => {
     callback(error);
   });
 }
+
+const waitForChanges = (since, response) => {
+  let waiter = {
+    since,
+    response,
+  };
+  waiting.push(waiter);
+  setTimeout(function() {
+    let found = waiting.indexOf(waiter);
+    if (found > -1) {
+      waiting.splice(found, 1);
+      sendTalks([], response);
+    }
+  }, 90 * 1000);
+};
 
 router.add('GET', /^\/talks\/([^\/]+)$/,
 (request, response, title) => {
@@ -122,7 +122,7 @@ router.add('PUT', /^\/talks\/([^\/]+)$/,
     } else if (!talk ||
         typeof talk.presenter != 'string' ||
         typeof talk.summary != 'string') {
-      respond(response, 400, ;'Bad talk data');
+      respond(response, 400, 'Bad talk data');
     } else {
       talks[title] = {
           title,

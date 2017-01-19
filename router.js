@@ -2,7 +2,7 @@ let Router = module.exports = function() {
   this.routes = [];
 };
 
-Router.proptotype.add = function(method, url, handler) {
+Router.prototype.add = function(method, url, handler) {
   this.routes.push ({
     method,
     url,
@@ -10,7 +10,7 @@ Router.proptotype.add = function(method, url, handler) {
   });
 };
 
-Router.prototype.resolve = function(request, resolve) {
+Router.prototype.resolve = function(request, response) {
   let path = require('url').parse(request.url).pathname;
   return this.routes.some(function(route) {
     let match = route.url.exec(path);
@@ -18,7 +18,8 @@ Router.prototype.resolve = function(request, resolve) {
       return false;
     }
     let urlParts = match.slice(1).map(decodeURIComponent);
-    route.handler.apply(null, [request, response].concat(urlParts));
+    route.handler.apply(null, [request, response]
+                              .concat(urlParts));
     return true;
   });
 };
