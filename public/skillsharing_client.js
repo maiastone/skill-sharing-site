@@ -6,7 +6,6 @@ let lastServerTime = 0;
 let shownTalks = Object.create(null);
 
 
-
 const request = (options, callback) => {
   let req = new XMLHttpRequest();
   req.open(options.method || 'GET', options.pathname, true);
@@ -20,33 +19,12 @@ const request = (options, callback) => {
   req.send(options.body || null);
 };
 
-
-
-
 const reportError = (error) => {
   if (error) {
     alert(error.toString());
   };
 };
 
-const displayTalks = (talks) => {
-  talks.forEach(function(talk) {
-    let shown = shownTalks[talk.title];
-    if (talk.deleted) {
-      if (shown) {
-        talkDiv.removeChild(shown);
-        delete shownTalks[talk.title];
-      }
-    } else {
-      let node = drawTalk(talk);
-      if (shown)
-        talkDiv.replaceChild(node, shown);
-      else
-        talkDiv.appendChild(node);
-      shownTalks[talk.title] = node;
-    }
-  });
-};
 
 const instantiateTemplate = (name, values) => {
   const instantiateText = (text) => {
@@ -92,6 +70,24 @@ const drawTalk = (talk) => {
   return node;
 };
 
+const displayTalks = (talks) => {
+  talks.forEach(function(talk) {
+    let shown = shownTalks[talk.title];
+    if (talk.deleted) {
+      if (shown) {
+        talkDiv.removeChild(shown);
+        delete shownTalks[talk.title];
+      }
+    } else {
+      let node = drawTalk(talk);
+      if (shown)
+      talkDiv.replaceChild(node, shown);
+      else
+      talkDiv.appendChild(node);
+      shownTalks[talk.title] = node;
+    }
+  });
+};
 const talkURL = (title) => {
   return 'talks/' + encodeURIComponent(title);
 };
@@ -102,13 +98,13 @@ const deleteTalk = (title) => {
 };
 
 const addComment = (title, comment) => {
-  let comment = {
+  let commentObj = {
     author: nameField.value,
     message: comment,
   };
   request({
     pathname: talkURL(title) + '/comments',
-    body: JSON.stringify(comment),
+    body: JSON.stringify(commentObj),
     method: 'POST',
   },
     reportError);
