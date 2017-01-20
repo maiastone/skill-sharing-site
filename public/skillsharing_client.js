@@ -15,7 +15,10 @@ const request= (options, callback) => {
 
 let lastServerTime = 0;
 
-request({pathname: 'talks'}, (error, response) => {
+request({
+  pathname: 'talks'
+},
+  (error, response) => {
   if (error) {
     reportError(error);
   } else {
@@ -110,7 +113,10 @@ const deleteTalk = (title) => {
 }
 
 const addComment = (title, comment) => {
-  var comment = {author: nameField.value, message: comment};
+  var comment = {
+    author: nameField.value,
+    message: comment
+  };
   request({
     pathname: talkURL(title) + '/comments',
     body: JSON.stringify(comment),
@@ -137,21 +143,25 @@ talkForm.addEventListener('submit', function(event) {
       presenter: nameField.value,
       summary: talkForm.elements.summary.value
     })
-  }, reportError);
+  }, 
+  reportError);
   talkForm.reset();
 });
 
 const waitForChanges =  () => {
-  request({pathname: 'talks?changesSince=' + lastServerTime},
-          function(error, response) {
-    if (error) {
-      setTimeout(waitForChanges, 2500);
-      console.error(error.stack);
-    } else {
-      response = JSON.parse(response);
-      displayTalks(response.talks);
-      lastServerTime = response.serverTime;
-      waitForChanges();
+  request({
+    pathname: 'talks?changesSince=' + lastServerTime
+  },
+    (error, response) => {
+      if (error) {
+        setTimeout(waitForChanges, 2500);
+        console.error(error.stack);
+      } else {
+        response = JSON.parse(response);
+        displayTalks(response.talks);
+        lastServerTime = response.serverTime;
+        waitForChanges();
+      }
     }
-  });
-}
+  );
+};
