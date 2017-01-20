@@ -1,30 +1,57 @@
-const talkDiv = document.querySelector('#talks');
-const nameField = document.querySelector('#name');
-const talkForm = document.querySelector('#newtalk');
-nameField.value = localStorage.getItem('name') || '';
-let lastServerTime = 0;
-let shownTalks = Object.create(null);
-
-
-const request = (options, callback) => {
+const request= (options, callback) => {
   let req = new XMLHttpRequest();
   req.open(options.method || 'GET', options.pathname, true);
-  req.addEventListener('load', () => {
-    req.status < 400 ? callback(null, req.responseText) :
-    callback(new Error('Request failed: ' + req.statusText));
+  req.addEventListener('load', function() {
+    if (req.status < 400)
+      callback(null, req.responseText);
+    else
+      callback(new Error('Request failed: ' + req.statusText));
   });
-  req.addEventListener('error', () => {
+  req.addEventListener('error', function() {
     callback(new Error('Network error'));
   });
   req.send(options.body || null);
-};
+}
+
+let lastServerTime = 0;
+
+request({pathname: 'talks'}, (error, response) => {
+  if (error) {
+    reportError(error);
+  } else {
+    response = JSON.parse(response);
+    displayTalks(response.talks);
+    lastServerTime = response.serverTime;
+    waitForChanges();
+  }
+});
 
 const reportError = (error) => {
-  if (error) {
+  if (error)
     alert(error.toString());
-  };
-};
+}
 
+let talkDiv = document.querySelector('#talks');
+let shownTalks = Object.create(null);
+
+const displayTalks = (talks) => {
+  talks.forEach(function(talk) {
+    let shown = shownTalks[talk.title];
+    if (talk.deleted) {
+      if (shown) {
+        talkDiv.removeChild(shown);
+        delete shownTalks[talk.title];
+      }
+    } else {
+      let node = drawTalk(talk);
+      if (shown)
+        talkDiv.replaceChild(node, shown);
+      else
+        talkDiv.appendChild(node);
+      shownTalks[talk.title] = node;
+    }
+  });
+}
 
 const instantiateTemplate = (name, values) => {
   const instantiateText = (text) => {
@@ -40,7 +67,7 @@ const instantiateTemplate = (name, values) => {
       return copy;
     } else if (node.nodeType == document.TEXT_NODE) {
       return document.createTextNode(
-        instantiateText(node.nodeValue));
+               instantiateText(node.nodeValue));
     } else {
       return node;
     }
@@ -51,8 +78,8 @@ const instantiateTemplate = (name, values) => {
 }
 
 const drawTalk = (talk) => {
-  const node = instantiateTemplate('talk', talk);
-  const comments = node.querySelector('.comments');
+  let node = instantiateTemplate('talk', talk);
+  let comments = node.querySelector('.comments');
   talk.comments.forEach(function(comment) {
     comments.appendChild(
       instantiateTemplate('comment', comment));
@@ -61,69 +88,45 @@ const drawTalk = (talk) => {
   node.querySelector('button.del').addEventListener(
     'click', deleteTalk.bind(null, talk.title));
 
-  const form = node.querySelector('form');
+  let form = node.querySelector('form');
   form.addEventListener('submit', function(event) {
     event.preventDefault();
     addComment(talk.title, form.elements.comment.value);
-      debugger;
     form.reset();
   });
   return node;
-};
+}
 
-const displayTalks = (talks) => {
-  talks.forEach(function(talk) {
-    let shown = shownTalks[talk.title];
-    if (talk.deleted) {
-      if (shown) {
-        talkDiv.removeChild(shown);
-        delete shownTalks[talk.title];
-      }
-    } else {
-      let node = drawTalk(talk);
-      if (shown)
-      talkDiv.replaceChild(node, shown);
-      else
-      talkDiv.appendChild(node);
-      shownTalks[talk.title] = node;
-    }
-  });
-};
 const talkURL = (title) => {
   return 'talks/' + encodeURIComponent(title);
-};
+}
 
 const deleteTalk = (title) => {
-  request({pathname: talkURL(title), method: 'DELETE'},
-    reportError);
-};
+  request({
+    pathname: talkURL(title),
+    method: 'DELETE',
+  },
+  reportError);
+}
 
 const addComment = (title, comment) => {
-  let commentObj = { author: nameField.value, message: comment};
-  request({pathname: talkURL(title) + '/comments',
-          body: (JSON.stringify(commentObj)),
-          method: 'POST'},
-          reportError);
-};
-
-const waitForChanges = () => {
-  request({pathname: 'talks?changesSince=' + lastServerTime},
-    (error, response) => {
-      if (error) {
-        setTimeout(waitForChanges, 2500);
-        console.error(error.stack);
-      } else {
-        response = JSON.parse(response);
-        displayTalks(response.talks);
-        lastServerTime = response.serverTime;
-        waitForChanges();
-      }
-    });
+  var comment = {author: nameField.value, message: comment};
+  request({
+    pathname: talkURL(title) + '/comments',
+    body: JSON.stringify(comment),
+    method: 'POST'},
+    reportError);
 }
+
+let nameField = document.querySelector('#name');
+
+nameField.value = localStorage.getItem('name') || '';
 
 nameField.addEventListener('change', function() {
   localStorage.setItem('name', nameField.value);
 });
+
+let talkForm = document.querySelector('#newtalk');
 
 talkForm.addEventListener('submit', function(event) {
   event.preventDefault();
@@ -138,13 +141,17 @@ talkForm.addEventListener('submit', function(event) {
   talkForm.reset();
 });
 
-request({pathname: 'talks'}, (error, response) => {
-  if (error) {
-    reportError(error);
-  } else {
-    response = JSON.parse(response);
-    displayTalks(response.talks);
-    lastServerTime = response.serverTime;
-    waitForChanges();
-  }
-});
+const waitForChanges =  () => {
+  request({pathname: 'talks?changesSince=' + lastServerTime},
+          function(error, response) {
+    if (error) {
+      setTimeout(waitForChanges, 2500);
+      console.error(error.stack);
+    } else {
+      response = JSON.parse(response);
+      displayTalks(response.talks);
+      lastServerTime = response.serverTime;
+      waitForChanges();
+    }
+  });
+}
