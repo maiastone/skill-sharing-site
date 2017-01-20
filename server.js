@@ -64,7 +64,7 @@ const registerChange = (title) => {
     title,
     time: Date.now()
   });
-  waiting.forEach(function(waiter) {
+  waiting.forEach((waiter) => {
     sendTalks(getChangedTalks(waiter.since), waiter.response);
   });
   waiting = [];
@@ -104,6 +104,29 @@ const waitForChanges = (since, response) => {
   }, 90 * 1000);
 };
 
+
+router.add('PUT', /^\/talks\/([^\/]+)$/, (request, response, title) => {
+  readStreamAsJSON(request, (error, talk) => {
+    if (error) {
+      respond(response, 400, error.toString());
+    }
+    else if (!talk ||
+               typeof talk.presenter != 'string' ||
+               typeof talk.summary != 'string') {
+      respond(response, 400, 'Bad talk data');
+    }
+    else {
+      talks[title] = {title: title,
+                      presenter: talk.presenter,
+                      summary: talk.summary,
+                      comments: []};
+      registerChange(title);
+      respond(response, 204, null);
+    }
+  });
+});
+
+
 router.add('GET', /^\/talks\/([^\/]+)$/,
 (request, response, title) => {
   if (title in talks) {
@@ -111,47 +134,6 @@ router.add('GET', /^\/talks\/([^\/]+)$/,
   } else {
     respond(response, 404, 'No talk ' + title + ' found');
   }
-});
-
-
-router.add('PUT', /^\/talks\/([^\/]+)$/,
-  (request, response, title) => {
-  readStreamAsJSON(request, function(error, talk) {
-    if (error) {
-      respond(response, 400, error.toString());
-    } else if (!talk ||
-        typeof talk.presenter != 'string' ||
-        typeof talk.summary != 'string') {
-      respond(response, 400, 'Bad talk data');
-    } else {
-      talks[title] = {
-          title,
-          presenter: talk.presenter,
-          summary: talk.summary,
-          comments: []};
-      registerChange(title);
-      respond(response, 204, null);
-    }
-  });
-});
-
-router.add('POST', /^\/talks\/([^\/]+)\/comments$/,
-  (request, response, title) => {
-  readStreamAsJSON(request, (error, comment) => {
-    if (error) {
-      respond(response, 400, error.toString());
-    } else if (!comment ||
-         typeof comment.author != 'string' ||
-         typeof comment.message != 'string') {
-      respond(response, 400, 'Bad comment data');
-    } else if (title in talks) {
-      talks[title].comments.push(comment);
-      registerChange(title);
-      respond(response, 204, null);
-    } else {
-      respond(response, 404, 'No talk ' + title + ' found');
-    }
-  });
 });
 
 router.add('DELETE', /^\/talks\/([^\/]+)$/,
@@ -162,6 +144,25 @@ router.add('DELETE', /^\/talks\/([^\/]+)$/,
   }
   respond(response, 204, null);
 });
+
+router.add('POST', /^\/talks\/([^\/]+)\/comments$/,
+(request, response, title) => {
+  readStreamAsJSON(request, (error, comment) => {
+    if (error) {
+      respond(response, 400, error.toString());
+    } else if (!comment ||
+      typeof comment.author != 'string' ||
+      typeof comment.message != 'string') {
+        respond(response, 400, 'Bad comment data');
+      } else if (title in talks) {
+        talks[title].comments.push(comment);
+        registerChange(title);
+        respond(response, 204, null);
+      } else {
+        respond(response, 404, 'No talk ' + title + ' found');
+      }
+    });
+  });
 
 router.add('GET', /^\/talks$/, (request, response) => {
   let query = require('url').parse(request.url, true).query;

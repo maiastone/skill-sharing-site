@@ -65,6 +65,7 @@ const drawTalk = (talk) => {
   form.addEventListener('submit', function(event) {
     event.preventDefault();
     addComment(talk.title, form.elements.comment.value);
+      debugger;
     form.reset();
   });
   return node;
@@ -98,16 +99,11 @@ const deleteTalk = (title) => {
 };
 
 const addComment = (title, comment) => {
-  let commentObj = {
-    author: nameField.value,
-    message: comment,
-  };
-  request({
-    pathname: talkURL(title) + '/comments',
-    body: JSON.stringify(commentObj),
-    method: 'POST',
-  },
-    reportError);
+  let commentObj = { author: nameField.value, message: comment};
+  request({pathname: talkURL(title) + '/comments',
+          body: (JSON.stringify(commentObj)),
+          method: 'POST'},
+          reportError);
 };
 
 const waitForChanges = () => {
